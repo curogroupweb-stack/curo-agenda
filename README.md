@@ -12,3 +12,5 @@ Cada mañana (07:00 UTC, 8:00 h en Madrid en invierno) Vercel ejecuta `/api/avis
 - Tablas: `agenda_config`, `agenda_tareas_avisos`, `agenda_dispositivos` (sin acceso directo; solo por funciones que piden la clave).
 - Variable de entorno necesaria en Vercel: `AGENDA_CLAVE` (la misma clave que se escribe al activar los avisos).
 - Las claves de envío se crean solas la primera vez y se guardan en Supabase.
+
+_Avisos activos desde la versión MVP 0.5 (noviembre 2026)._
