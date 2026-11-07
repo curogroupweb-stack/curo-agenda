@@ -1,0 +1,9 @@
+{
+  "name": "curo-agenda",
+  "private": true,
+  "description": "CURO Agenda: agenda de tareas con avisos de vencimiento",
+  "engines": { "node": "24.x" },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
