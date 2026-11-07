@@ -5,15 +5,20 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { cuerpo: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.titulo || 'CURO Agenda', {
+  e.waitUntil(Promise.all([
+    // Si la agenda está abierta, también muestra el llamado grande con sonido
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(vs => vs.forEach(v => v.postMessage({ tipo: 'curo-aviso', titulo: d.titulo, cuerpo: d.cuerpo }))),
+    self.registration.showNotification(d.titulo || 'CURO Agenda', {
     body: d.cuerpo || 'Tenés tareas por vencer.',
     icon: '/icono-192.png',
     badge: '/icono-192.png',
     tag: d.etiqueta || 'curo-agenda',
     renotify: true,
     requireInteraction: true,
+    silent: false,
     data: { url: '/' }
-  }));
+  })]));
 });
 
 self.addEventListener('notificationclick', e => {
