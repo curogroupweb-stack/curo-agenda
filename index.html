@@ -75,6 +75,79 @@ function renderCalendar(){
  const dayTasks=tasks.filter(t=>!t.backlog&&t.due===selectedCalendarDate).sort((a,b)=>(a.status==='done')-(b.status==='done')||({'urgent':0,'high':1,'medium':2,'low':3}[a.priority]??4)-({'urgent':0,'high':1,'medium':2,'low':3}[b.priority]??4));
  $('#dayTasks').innerHTML=dayTasks.length?dayTasks.map(t=>'<div class="day-task"><div class="day-task-body"><div class="day-task-title">'+(t.status==='done'?'✓ ':'')+esc(t.title)+'</div><div class="day-task-meta">'+esc(t.project||'General')+' · '+esc(stages.find(s=>s.id===t.stage)?.name||names[t.status]||'Pendiente')+' · '+esc(prNames[t.priority]||'Media')+'</div></div><button type="button" class="secondary" data-calendar-edit="'+t.id+'">Abrir</button></div>').join(''):'<div class="day-empty">No tienes tareas con vencimiento para este día.<br>Puedes crear una nueva con la fecha ya seleccionada.</div>';
 }
+
+const socialAgendaUrl='https://curo-social-manager.vercel.app/?view=publicaciones';
+const socialAgendaKey='curoAgendaClaveAvisos';
+const socialAgendaApi='https://llugctysxrkqpydyhnvw.supabase.co/rest/v1/rpc/';
+const socialAgendaPublicKey='sb_publishable_RPo3-Vb7rZ9A7R1dXsH11Q_h5iKXT64';
+let socialAgendaItems=[],socialAgendaState='',socialAgendaLoading=false;
+async function socialAgendaRpc(action,data) {
+  const response=await fetch(socialAgendaApi+action,{method:'POST',headers:{apikey:socialAgendaPublicKey,'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw Error('No se pudo consultar CURO Social Manager');
+  return response.json();
+}
+function renderSocialAgendaCard() {
+  const column=document.querySelector('[data-drop="plan"]');
+  if(!column)return;
+  let card=document.getElementById('socialAgendaCard');
+  if(!card){
+    card=document.createElement('article');
+    card.id='socialAgendaCard';
+    card.className='kan-card';
+    column.prepend(card);
+  }
+  const count=socialAgendaItems.length;
+  card.innerHTML='<div class="kan-title">Redes sociales</div><p role="status"><strong>'+
+    esc(socialAgendaState||(count===1?'1 publicación lista para revisar':count+' publicaciones listas para revisar'))+
+    '</strong></p>'+(count?'<ul style="padding-left:18px">'+socialAgendaItems.map(item=>'<li>'+esc(item.network)+' · '+esc(item.title)+'</li>').join('')+'</ul>':'')+
+    '<p><a href="'+socialAgendaUrl+'" target="_blank" rel="noopener">Abrir CURO Social Manager</a></p>'+
+    '<details><summary>Vincular Social Manager</summary><p>Generá un código y pegalo en Configuración de Social Manager. Un código nuevo sustituye al anterior.</p>'+
+    '<button type="button" class="secondary" id="pairSocialAgenda">Generar código de vínculo</button><div id="socialAgendaCode" role="status"></div></details>';
+  document.getElementById('pairSocialAgenda').onclick=async event=>{
+    const key=localStorage.getItem(socialAgendaKey);
+    const result=document.getElementById('socialAgendaCode');
+    if(!key){result.textContent='Ingresá primero a Agenda.';return}
+    const button=event.currentTarget;
+    button.disabled=true;
+    const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
+    try {
+      await socialAgendaRpc('agenda_social_pair',{p_clave:key,p_token:token});
+      const code=document.createElement('input');
+      code.type='text';
+      code.readOnly=true;
+      code.value=token;
+      code.setAttribute('aria-label','Código de vínculo');
+      result.replaceChildren(code);
+      code.select();
+      try{await navigator.clipboard.writeText(token);result.append(' Código copiado.')}catch{result.append(' Copiá el código seleccionado.')}
+    } catch {
+      result.textContent='No se pudo generar el código. Volvé a intentarlo.';
+    } finally {
+      button.disabled=false;
+    }
+  };
+}
+async function refreshSocialAgenda() {
+  const key=localStorage.getItem(socialAgendaKey);
+  if(!key||socialAgendaLoading)return;
+  socialAgendaLoading=true;
+  try {
+    const items=await socialAgendaRpc('agenda_social_pending',{p_clave:key});
+    if(localStorage.getItem(socialAgendaKey)!==key)return;
+    const changed=socialAgendaState||JSON.stringify(items)!==JSON.stringify(socialAgendaItems);
+    socialAgendaItems=items;
+    socialAgendaState='';
+    if(changed&&!document.getElementById('socialAgendaCode')?.querySelector('input'))renderSocialAgendaCard();
+  }catch{
+    socialAgendaItems=[];
+    socialAgendaState='No se pudo actualizar el aviso de redes';
+    renderSocialAgendaCard();
+  }finally{
+    socialAgendaLoading=false;
+  }
+}
+window.addEventListener('focus',refreshSocialAgenda);
+setInterval(()=>{if(!document.hidden)refreshSocialAgenda()},30000);
 function render(){let open=tasks.filter(t=>t.status!=='done'&&!t.backlog),urg=open.filter(t=>t.priority==='urgent'),due=open.filter(t=>t.due&&t.due<=today()),done=tasks.filter(t=>t.status==='done'&&!t.backlog);$('#openCount').textContent=open.length;$('#urgentStat').textContent=urg.length;$('#urgentCount').textContent=urg.length?'('+urg.length+')':'';$('#todayCount').textContent=due.length;$('#doneCount').textContent=done.length;
 let q=$('#search').value.toLowerCase().trim(),p=$('#projectFilter').value;
 let shown=tasks.filter(t=>{if(view==='backlog'&&!t.backlog)return false;if(view!=='backlog'&&t.backlog)return false;if(view==='urgent'&&t.priority!=='urgent')return false;if(view==='today'&&!(t.due&&t.due<=today()&&t.status!=='done'))return false;if(view==='upcoming'&&!(t.due&&t.due>today()&&t.status!=='done'))return false;if(view==='done'&&t.status!=='done')return false;if(filter==='urgent'&&t.priority!=='urgent')return false;if(filter==='progress'&&t.status!=='progress')return false;if(filter==='pending'&&t.status!=='pending')return false;if(p!=='all'&&t.project!==p)return false;if(q&&!([t.title,t.desc,t.project,names[t.status],prNames[t.priority],stages.find(s=>s.id===t.stage)?.name,...(t.attachments||[]).map(a=>a.name)].join(' ').toLowerCase().includes(q)))return false;return true});
@@ -82,6 +155,8 @@ $('#board').style.display=view==='calendar'||listMode?'none':'grid';$('#taskList
 $('#taskListView').innerHTML='<table><thead><tr><th>Hecha</th><th>Tarea</th><th>Proyecto</th><th>Etapa</th><th>Prioridad</th><th>Fecha límite</th></tr></thead><tbody>'+(shown.length?shown.map(t=>'<tr><td><input type="checkbox" data-list-check="'+t.id+'" '+(t.status==='done'?'checked':'')+' aria-label="Marcar como completada"></td><td><div class="list-task-name" data-list-edit="'+t.id+'">'+esc(t.title)+'</div>'+(t.subtasks&&t.subtasks.length?'<div class="list-subtask">Checklist: '+t.subtasks.filter(x=>x.done).length+'/'+t.subtasks.length+'</div>':'')+(t.backlog?'<div class="backlog-note">BACKLOG</div>':'')+'</td><td>'+esc(t.project||'General')+'</td><td>'+esc((stages.find(x=>x.id===t.stage)||stages[0]).name)+'</td><td>'+esc(prNames[t.priority]||t.priority||'Media')+'</td><td>'+esc(t.due||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No hay tareas que coincidan con estos filtros.</td></tr>')+'</tbody></table>';$('#listViewToggle').textContent=listMode?'▦ Vista tablero':'☷ Vista lista';const alerts=open.filter(t=>t.due&&t.due<=new Date(new Date().setDate(new Date().getDate()+1)).toISOString().slice(0,10)).sort((a,b)=>a.due.localeCompare(b.due));$('#alertCount').textContent=alerts.length;
 $('#alertPanel').innerHTML='<h3>🔔 Avisos de vencimiento</h3>'+(alerts.length?alerts.map(t=>'<div class="alertitem"><b>'+(t.due<today()?'🔴 Vencida':t.due===today()?'🟠 Vence hoy':'🟡 Vence mañana')+'</b> · '+esc(t.title)+' <span style="color:var(--muted)">('+esc(t.project)+', '+esc(t.due)+')</span></div>').join(''):'<div class="alertitem">No hay tareas que venzan hoy ni mañana.</div>')+'<div class="hint">Para recibir estos avisos en tu computadora y tu celular aunque la agenda esté cerrada, tocá <b>📲 Avisos</b> arriba.</div>';
 $('#listTitle').textContent=({all:'Tablero de producción',urgent:'Tablero · Tareas urgentes',today:'Tablero · Para hoy',upcoming:'Tablero · Próximas tareas',done:'Tablero · Completadas',calendar:'Calendario de tareas'})[view];$('#crumb').textContent='Curo Group / '+({all:'Tablero Kanban',urgent:'Urgente',today:'Urgente',upcoming:'Próximas',done:'Completadas',calendar:'Calendario',backlog:'Backlog / Ideas'})[view];if(view==='calendar')renderCalendar();
+renderSocialAgendaCard();
+refreshSocialAgenda();
 }
 
 // Fallback de navegación delegada: mantiene activos los accesos aunque falle un enlace individual.
