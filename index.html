@@ -76,7 +76,7 @@ function renderCalendar(){
  $('#dayTasks').innerHTML=dayTasks.length?dayTasks.map(t=>'<div class="day-task"><div class="day-task-body"><div class="day-task-title">'+(t.status==='done'?'✓ ':'')+esc(t.title)+'</div><div class="day-task-meta">'+esc(t.project||'General')+' · '+esc(stages.find(s=>s.id===t.stage)?.name||names[t.status]||'Pendiente')+' · '+esc(prNames[t.priority]||'Media')+'</div></div><button type="button" class="secondary" data-calendar-edit="'+t.id+'">Abrir</button></div>').join(''):'<div class="day-empty">No tienes tareas con vencimiento para este día.<br>Puedes crear una nueva con la fecha ya seleccionada.</div>';
 }
 
-const socialAgendaUrl='https://curo-social-manager-eo2u5d9m4-curo-group.vercel.app/?view=publicaciones';
+const socialAgendaUrl='https://curo-social-manager-git-main-curo-group.vercel.app/?view=publicaciones';
 const socialAgendaKey='curoAgendaClaveAvisos';
 const socialAgendaApi='https://llugctysxrkqpydyhnvw.supabase.co/rest/v1/rpc/';
 const socialAgendaPublicKey='sb_publishable_RPo3-Vb7rZ9A7R1dXsH11Q_h5iKXT64';
