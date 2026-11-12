@@ -99,7 +99,7 @@ function renderSocialAgendaCard() {
   const count=socialAgendaItems.length;
   card.innerHTML='<div class="kan-title">Redes sociales</div><p role="status"><strong>'+
     esc(socialAgendaState||(count===1?'1 publicación lista para revisar':count+' publicaciones listas para revisar'))+
-    '</strong></p>'+(count?'<ul style="padding-left:18px">'+socialAgendaItems.map(item=>'<li>'+esc(item.network)+' · '+esc(item.title)+'</li>').join('')+'</ul>':'')+
+    '</strong></p>'+(count?'<ul style="padding-left:18px">'+socialAgendaItems.map(item=>'<li style="margin:8px 0">'+esc(item.network)+' · '+esc(item.title)+' <span style="display:inline-flex;gap:5px;flex-wrap:wrap"><a class="secondary" style="font-size:11px;padding:5px 8px;text-decoration:none" href="'+socialAgendaUrl+'&post='+encodeURIComponent(item.id)+'&action=edit" target="_blank" rel="noopener">Editar</a><a class="del" style="font-size:11px;padding:5px 8px;text-decoration:none" href="'+socialAgendaUrl+'&post='+encodeURIComponent(item.id)+'&action=delete" target="_blank" rel="noopener">Eliminar</a></span></li>').join('')+'</ul>':'')+
     '<p><a href="'+socialAgendaUrl+'" target="_blank" rel="noopener">Abrir CURO Social Manager</a></p>'+
     '<details><summary>Vincular Social Manager</summary><p>Generá un código y pegalo en Configuración de Social Manager. Un código nuevo sustituye al anterior.</p>'+
     '<button type="button" class="secondary" id="pairSocialAgenda">Generar código de vínculo</button><div id="socialAgendaCode" role="status"></div></details>';
