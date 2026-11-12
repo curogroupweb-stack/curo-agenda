@@ -105,24 +105,25 @@ function renderSocialAgendaCard() {
   const count=socialAgendaItems.length;
   card.innerHTML='<div class="kan-title">Redes sociales</div><p role="status"><strong>'+
     esc(socialAgendaState||(count===1?'1 publicación lista para revisar':count+' publicaciones listas para revisar'))+
-    '</strong></p>'+(count?'<ul style="padding-left:18px">'+socialAgendaItems.map(item=>'<li style="margin:8px 0">'+esc(item.network)+' · '+esc(item.title)+' <span style="display:inline-flex;gap:5px;flex-wrap:wrap"><a class="secondary" style="font-size:11px;padding:5px 8px;text-decoration:none" href="'+socialAgendaUrl+'&post='+encodeURIComponent(item.id)+'&action=edit" target="_blank" rel="noopener">Editar</a><button type="button" class="del" style="font-size:11px;padding:5px 8px" data-social-dismiss="'+esc(item.id)+'">Eliminar</button></span></li>').join('')+'</ul>':'')+
+    '</strong></p>'+(count?'<ul style="padding-left:18px">'+socialAgendaItems.map(item=>'<li style="margin:8px 0">'+esc(item.network)+' · '+esc(item.title)+' <span style="display:inline-flex;gap:5px;flex-wrap:wrap"><a class="secondary" style="font-size:11px;padding:5px 8px;text-decoration:none" href="'+socialAgendaUrl+'&post='+encodeURIComponent(item.id)+'&action=edit" target="_blank" rel="noopener">Editar</a><button type="button" class="del" style="font-size:11px;padding:5px 8px" data-social-dismiss="'+esc(item.id)+'">Eliminar planificación</button></span></li>').join('')+'</ul>':'')+
     '<p><a href="'+socialAgendaUrl+'" target="_blank" rel="noopener">Abrir CURO Social Manager</a></p>'+
     '<details><summary>Vincular Social Manager</summary><p>Generá un código y pegalo en Configuración de Social Manager. Un código nuevo sustituye al anterior.</p>'+
     '<button type="button" class="secondary" id="pairSocialAgenda">Generar código de vínculo</button><div id="socialAgendaCode" role="status"></div></details>';
   card.querySelectorAll('[data-social-dismiss]').forEach(button=>button.onclick=async()=>{
-    const id=button.dataset.socialDismiss;
-    const item=socialAgendaItems.find(entry=>String(entry.id)===id);
-    if(!item||!confirm('¿Quitar «'+item.title+'» de Planificación? La publicación seguirá guardada en CURO Social Manager.'))return;
+    if(!confirm('¿Eliminar toda la planificación de Redes sociales de CURO Agenda? Las publicaciones originales seguirán en Social Manager.'))return;
     const key=localStorage.getItem(socialAgendaKey);
     if(!key){alert('Ingresá primero a Agenda.');return;}
-    button.disabled=true;
+    card.querySelectorAll('[data-social-dismiss]').forEach(btn=>btn.disabled=true);
     try{
-      const removed=await socialAgendaRpc('agenda_social_dismiss',{p_clave:key,p_id:id});
-      if(removed!==true)throw Error('No se pudo quitar la publicación');
-      socialAgendaItems=socialAgendaItems.filter(entry=>String(entry.id)!==id);
+      const removed=await socialAgendaRpc('agenda_social_dismiss_all',{p_clave:key});
+      if(removed!==true)throw Error('No se pudo quitar la planificación');
+      socialAgendaItems=[];
       socialAgendaState='';
       renderSocialAgendaCard();
-    }catch{button.disabled=false;alert('No se pudo quitar de Planificación. Intentá nuevamente.');}
+    }catch{
+      card.querySelectorAll('[data-social-dismiss]').forEach(btn=>btn.disabled=false);
+      alert('No se pudo eliminar la planificación. Intentá nuevamente.');
+    }
   });
   document.getElementById('pairSocialAgenda').onclick=async event=>{
     const key=localStorage.getItem(socialAgendaKey);
