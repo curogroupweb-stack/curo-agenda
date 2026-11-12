@@ -90,6 +90,12 @@ function renderSocialAgendaCard() {
   const column=document.querySelector('[data-drop="plan"]');
   if(!column)return;
   let card=document.getElementById('socialAgendaCard');
+  // La tarjeta de redes existe solo mientras haya publicaciones pendientes.
+  // Al quitar la última, eliminar también el contenedor completo.
+  if(!socialAgendaItems.length){
+    card?.remove();
+    return;
+  }
   if(!card){
     card=document.createElement('article');
     card.id='socialAgendaCard';
