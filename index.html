@@ -218,7 +218,7 @@ renderInbox();normalizeTasks();render();
 .entrar-back{position:fixed;inset:0;background:#121a3a;z-index:50;display:none;align-items:center;justify-content:center;padding:18px}.entrar-back.show{display:flex}
 .entrar{background:#fff;border-radius:14px;width:min(420px,100%);padding:26px 24px;text-align:center}.entrar .logo{margin:0 auto 8px;width:46px;height:50px}.entrar h2{margin:6px 0;font-size:20px}.entrar p{color:var(--muted);line-height:1.5;margin:6px 0 16px;font-size:13px}.entrar input{width:100%;padding:12px;border:1px solid #dfe2e9;border-radius:8px;margin-bottom:10px}.entrar .primary{width:100%}.entrar .error{color:#c83f50;font-size:12px;min-height:16px;margin-top:8px}
 </style>
-<div class="entrar-back" id="entrarBack"><form class="entrar" id="entrarForm"><div class="logo"></div><h2>Entrá a tu agenda</h2><p>Tu agenda ahora se guarda en la nube y la ves igual en la computadora y en el celular. Escribí tu clave de CURO Agenda (la misma de los avisos). Se pide una sola vez en cada dispositivo.</p><input id="entrarClave" type="password" autocomplete="current-password" placeholder="Tu clave" required><button class="primary" type="submit" id="entrarBtn">Entrar</button><div class="error" id="entrarError"></div></form></div>
+
 <script>
 // ===== CURO Agenda en la nube (Supabase) =====
 // Tareas, bandeja y archivos se guardan en Supabase; el navegador guarda solo una copia para abrir rápido.
@@ -232,8 +232,8 @@ const enlaces={};
 const ordenar=v=>Array.isArray(v)?v.map(ordenar):v&&typeof v==='object'?Object.keys(v).sort().reduce((o,k)=>(v[k]!==undefined&&(o[k]=ordenar(v[k])),o),{}):v,canon=v=>JSON.stringify(ordenar(v));
 const clave=()=>ls.get(K_CLAVE);
 function estado(t,err){const e=$('#nubeEstado');if(e){e.textContent=t;e.classList.toggle('error',!!err)}}
-async function rpc(n,d){let r;try{r=await fetch(SB+'/rest/v1/rpc/'+n,{method:'POST',headers:{apikey:SBK,'Content-Type':'application/json'},body:JSON.stringify(d)})}catch(e){throw new Error('Sin conexión')}const t=await r.text();if(!r.ok){const er=new Error(/clave incorrecta/.test(t)?'Clave incorrecta':'No se pudo conectar ('+r.status+')');er.clave=/clave incorrecta/.test(t);throw er}return t?JSON.parse(t):null}
-async function archivos(accion,extra){const r=await fetch(SB+'/functions/v1/agenda-archivos',{method:'POST',headers:{apikey:SBK,'Content-Type':'application/json'},body:JSON.stringify({clave:clave(),accion,...extra})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||'Error con el archivo');return j}
+async function rpc(n,d){let r;try{r=await fetch('/api/agenda-cloud/'+encodeURIComponent(n),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}catch(e){throw new Error('Sin conexión')}const t=await r.text();if(!r.ok){const er=new Error(/clave incorrecta/.test(t)?'Clave incorrecta':'No se pudo conectar ('+r.status+')');er.clave=/clave incorrecta/.test(t);throw er}return t?JSON.parse(t):null}
+async function archivos(accion,extra){const r=await fetch('/api/agenda-cloud-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accion,...extra})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||'Error con el archivo');return j}
 async function subirUno(a){const blob=await (await fetch(a.data)).blob();const j=await archivos('subir',{nombre:a.name||'archivo'});const fd=new FormData();fd.append('cacheControl','3600');fd.append('',blob,a.name||'archivo');const r=await fetch(j.url,{method:'PUT',body:fd,headers:{apikey:SBK,'x-upsert':'false'}});if(!r.ok)throw new Error('No se pudo subir '+(a.name||'el archivo'));a.path=j.ruta;delete a.data}
 function rutasDe(lista){const s=new Set();for(const t of lista)for(const a of (t.attachments||[]))if(a.path)s.add(a.path);return s}
 function guardarCache(){ls.set(K_CACHE,JSON.stringify(tasks));ls.set(K_BANDEJA,JSON.stringify(inboxFiles))}
@@ -255,7 +255,7 @@ async function guardarNube(){
   ultimo=foto;ultimaBandeja=bandeja;guardarCache();
   if(sobran.length)archivos('borrar',{rutas:sobran}).catch(()=>{});
   estado('☁️ Guardado');
- }catch(e){console.warn('Nube:',e);if(e.clave){pedirClave('Tu clave cambió. Escribila de nuevo.');}else{estado('⚠️ Sin guardar: reintentando…',true);programar(20000)}}
+ }catch(e){console.warn('Nube:',e);estado('⚠️ Sin guardar: reintentando…',true);programar(20000)}
  finally{ocupado=false;if(otraVez){otraVez=false;programar(50)}}
 }
 // Todo cambio (tareas o bandeja) se guarda en la nube
@@ -297,15 +297,12 @@ async function recargar(){
   if(firma(nube)!==firma(tasks)||canon(nb)!==ultimaBandeja){
    ultimo=new Map(nube.map(t=>[String(t.id),canon(t)]));ultimaBandeja=canon(nb);
    tasks=nube;inboxFiles=nb;render();renderInbox();guardarCache();renderEnlaces()}
-  estado('☁️ Guardado')}catch(e){if(e.clave)pedirClave('Tu clave cambió. Escribila de nuevo.')}
+  estado('☁️ Guardado')}catch(e){estado('⚠️ No se pudo sincronizar',true)}
 }
-function pedirClave(msg){listo=false;$('#entrarError').textContent=msg||'';$('#entrarBack').classList.add('show');setTimeout(()=>$('#entrarClave').focus(),50)}
-$('#entrarForm').onsubmit=async e=>{e.preventDefault();const c=$('#entrarClave').value.trim();if(!c)return;const b=$('#entrarBtn');b.disabled=true;b.textContent='Entrando…';$('#entrarError').textContent='';
- try{const d=await rpc('agenda_cargar',{p_clave:c});ls.set(K_CLAVE,c);$('#entrarBack').classList.remove('show');await arrancar(d)}catch(err){$('#entrarError').textContent=err.clave?'La clave no es correcta. Probá de nuevo.':'No me pude conectar. Revisá internet y probá de nuevo.'}finally{b.disabled=false;b.textContent='Entrar'}};
 async function iniciar(){
- if(!clave()){pedirClave();return}
  estado('☁️ Cargando…');
- try{await arrancar(await rpc('agenda_cargar',{p_clave:clave()}))}catch(e){if(e.clave){pedirClave('Escribí tu clave para entrar.')}else{estado('⚠️ Sin conexión: mostrando la última copia',true);setTimeout(iniciar,15000)}}
+ try{await arrancar(await rpc('agenda_cargar',{}))}
+ catch(e){estado('⚠️ No se pudo conectar con la nube. No se guardarán cambios hasta recuperar la conexión.',true);setTimeout(iniciar,15000)}
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')recargar()});
 window.addEventListener('focus',recargar);window.addEventListener('online',()=>{if(listo)programar(100);else iniciar()});
