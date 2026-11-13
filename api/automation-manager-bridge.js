@@ -10,11 +10,12 @@ module.exports = async (req, res) => {
   const now = new Date();
   const parts = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now);
   const p = key => parts.find(x=>x.type===key)?.value;
-  if (p('weekday')!=='Sat' || p('hour')!=='10') return res.status(200).json({ok:true,skipped:true});
+  const test = req.query && req.query.test === '1';
+  if (!test && (p('weekday')!=='Sat' || p('hour')!=='10')) return res.status(200).json({ok:true,skipped:true});
   const day = p('year')+'-'+p('month')+'-'+p('day');
   try {
     const response = await fetch(target,{method:'POST',headers:{'content-type':'application/json','x-curo-agenda-secret':secret},body:JSON.stringify({automationId:'3',event:'prepare',scheduledFor:day+'T10:00:00',scheduleDate:day})});
     const result = await response.json().catch(()=>({}));
-    return res.status(response.ok?200:502).json({ok:response.ok,manager:result});
+    return res.status(response.ok?200:502).json({ok:response.ok,test,manager:result});
   } catch { return res.status(502).json({ok:false,error:'No se pudo contactar Automation Manager'}); }
 };
