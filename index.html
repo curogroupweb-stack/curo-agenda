@@ -260,28 +260,8 @@ async function guardarNube(){
 }
 // Todo cambio (tareas o bandeja) se guarda en la nube
 const persistLocal=persist;
-persist=function(){
- if(!listo){
-  // Device-only access: update BOTH the original local store and the cache used on reload.
-  persistLocal.apply(this,arguments);
-  guardarCache();
-  estado('📱 Guardado en este dispositivo (sin sincronización en la nube)');
-  return;
- }
- guardarCache();renderEnlaces();programar()
-};
-persistInbox=function(){
- if(!listo){
-  try{
-   localStorage.setItem('curoAgendaInboxV1',JSON.stringify(inboxFiles));
-   localStorage.setItem(K_BANDEJA,JSON.stringify(inboxFiles));
-   renderInbox();
-   estado('📱 Guardado en este dispositivo (sin sincronización en la nube)');
-   return true;
-  }catch(e){toast('No hay espacio suficiente en el navegador.');return false}
- }
- guardarCache();renderInbox();programar();return true
-};
+persist=function(){if(!listo)return persistLocal.apply(this,arguments);guardarCache();renderEnlaces();programar()};
+persistInbox=function(){if(!listo){try{localStorage.setItem('curoAgendaInboxV1',JSON.stringify(inboxFiles));renderInbox();return true}catch(e){toast('No hay espacio suficiente en el navegador.');return false}}guardarCache();renderInbox();programar();return true};
 // Abrir archivos guardados en la nube (enlace temporal y privado)
 async function pedirEnlaces(rutas){rutas=rutas.filter(r=>r&&!enlaces[r]);if(!rutas.length)return;try{const j=await archivos('ver',{rutas});Object.assign(enlaces,j.urls||{})}catch(e){}}
 function renderEnlaces(){const rutas=[...rutasDe(tasks),...inboxFiles.map(f=>f.path).filter(Boolean)];pedirEnlaces([...rutas])}
@@ -322,28 +302,14 @@ async function recargar(){
 function pedirClave(msg){listo=false;$('#entrarError').textContent=msg||'';$('#entrarBack').classList.add('show');setTimeout(()=>$('#entrarClave').focus(),50)}
 $('#entrarForm').onsubmit=async e=>{e.preventDefault();const c=$('#entrarClave').value.trim();if(!c)return;const b=$('#entrarBtn');b.disabled=true;b.textContent='Entrando…';$('#entrarError').textContent='';
  try{const d=await rpc('agenda_cargar',{p_clave:c});ls.set(K_CLAVE,c);$('#entrarBack').classList.remove('show');await arrancar(d)}catch(err){$('#entrarError').textContent=err.clave?'La clave no es correcta. Probá de nuevo.':'No me pude conectar. Revisá internet y probá de nuevo.'}finally{b.disabled=false;b.textContent='Entrar'}};
-function iniciarLocal(){
- // No password requested: local-only mode, never access or overwrite protected cloud records.
- // Preserve the existing browser cache and original V3 data for later recovery.
- const local=locales();
- let cachedTasks=null,cachedInbox=null;
- try{cachedTasks=JSON.parse(ls.get(K_CACHE)||'null')}catch(e){}
- try{cachedInbox=JSON.parse(ls.get(K_BANDEJA)||'null')}catch(e){}
- if(Array.isArray(cachedTasks))tasks=cachedTasks;
- else if(local.tareas.length)tasks=local.tareas;
- if(Array.isArray(cachedInbox))inboxFiles=cachedInbox;
- else if(local.bandeja.length)inboxFiles=local.bandeja;
- normalizeTasks();render();renderInbox();
- estado('📱 Modo local: guardado solo en este dispositivo. La nube requiere autorización.',true);
-}
 async function iniciar(){
- if(!clave()){iniciarLocal();return}
+ if(!clave()){pedirClave();return}
  estado('☁️ Cargando…');
  try{await arrancar(await rpc('agenda_cargar',{p_clave:clave()}))}catch(e){if(e.clave){pedirClave('Escribí tu clave para entrar.')}else{estado('⚠️ Sin conexión: mostrando la última copia',true);setTimeout(iniciar,15000)}}
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')recargar()});
-window.addEventListener('focus',recargar);window.addEventListener('online',()=>{if(listo)programar(100);else if(clave())iniciar()});
-setInterval(()=>{if(document.visibilityState==='visible'&&listo)recargar()},60000);
+window.addEventListener('focus',recargar);window.addEventListener('online',()=>{if(listo)programar(100);else iniciar()});
+setInterval(()=>{if(document.visibilityState==='visible')recargar()},60000);
 window.addEventListener('beforeunload',e=>{if(ocupado||$('#nubeEstado').textContent.includes('Sin guardar')){e.preventDefault();e.returnValue=''}});
 iniciar();
 })();
