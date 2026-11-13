@@ -260,8 +260,28 @@ async function guardarNube(){
 }
 // Todo cambio (tareas o bandeja) se guarda en la nube
 const persistLocal=persist;
-persist=function(){if(!listo)return persistLocal.apply(this,arguments);guardarCache();renderEnlaces();programar()};
-persistInbox=function(){if(!listo){try{localStorage.setItem('curoAgendaInboxV1',JSON.stringify(inboxFiles));renderInbox();return true}catch(e){toast('No hay espacio suficiente en el navegador.');return false}}guardarCache();renderInbox();programar();return true};
+persist=function(){
+ if(!listo){
+  // Device-only access: update BOTH the original local store and the cache used on reload.
+  persistLocal.apply(this,arguments);
+  guardarCache();
+  estado('📱 Guardado en este dispositivo (sin sincronización en la nube)');
+  return;
+ }
+ guardarCache();renderEnlaces();programar()
+};
+persistInbox=function(){
+ if(!listo){
+  try{
+   localStorage.setItem('curoAgendaInboxV1',JSON.stringify(inboxFiles));
+   localStorage.setItem(K_BANDEJA,JSON.stringify(inboxFiles));
+   renderInbox();
+   estado('📱 Guardado en este dispositivo (sin sincronización en la nube)');
+   return true;
+  }catch(e){toast('No hay espacio suficiente en el navegador.');return false}
+ }
+ guardarCache();renderInbox();programar();return true
+};
 // Abrir archivos guardados en la nube (enlace temporal y privado)
 async function pedirEnlaces(rutas){rutas=rutas.filter(r=>r&&!enlaces[r]);if(!rutas.length)return;try{const j=await archivos('ver',{rutas});Object.assign(enlaces,j.urls||{})}catch(e){}}
 function renderEnlaces(){const rutas=[...rutasDe(tasks),...inboxFiles.map(f=>f.path).filter(Boolean)];pedirEnlaces([...rutas])}
