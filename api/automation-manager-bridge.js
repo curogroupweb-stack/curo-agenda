@@ -3,7 +3,7 @@
 module.exports = async (req, res) => {
   if (req.method !== 'GET') return res.status(405).json({ok:false});
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && req.headers.authorization !== 'Bearer ' + cronSecret) return res.status(401).json({ok:false});
+  if (!cronSecret || req.headers.authorization !== 'Bearer ' + cronSecret) return res.status(401).json({ok:false});
   const target = process.env.CURO_AUTOMATION_MANAGER_BRIDGE_URL;
   const secret = process.env.CURO_BRIDGE_SECRET;
   if (!target || !secret) return res.status(503).json({ok:false,error:'Conexión sin configurar'});
